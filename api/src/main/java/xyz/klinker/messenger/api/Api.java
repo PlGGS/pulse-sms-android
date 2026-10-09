@@ -25,6 +25,9 @@ import java.io.IOException;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Field;
 import java.lang.reflect.Type;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.nio.charset.StandardCharsets;
 import java.util.Locale;
 
 import okhttp3.HttpUrl;
@@ -64,9 +67,10 @@ public class Api {
 
     private static final String API_DEBUG_URL = "http://192.168.86.111:3000/api/v1/";
     private static final String API_STAGING_URL = "https://klinkerapps-messenger-staging.herokuapp.com/api/v1/";
-    private static final String API_RELEASE_URL = "https://api.messenger.klinkerapps.com/api/v1/";
+    private static final String API_RELEASE_URL = "https://api.pulsesms.app/api/v1/";
 
-    private static OkHttpClient.Builder httpClient = new OkHttpClient.Builder();
+    private static OkHttpClient.Builder httpClient = new OkHttpClient.Builder()
+            .addInterceptor(new UserTokenInterceptor());
 
     private static CallAdapter.Factory callAdapterFactory = new CallAdapter.Factory() {
         @Override
@@ -136,6 +140,87 @@ public class Api {
 
     private Retrofit retrofit;
     private String baseUrl;
+
+    /**
+     * Supplies the credentials used to sign requests. The current server requires an
+     * X-User-Token alongside the account_id; it is derived locally from the account's salt,
+     * so nothing beyond what a login already returns is needed.
+     */
+    /**
+     * The configured Gson, exposed so a login response obtained outside the app (see
+     * LoginActivity's manual sign-in) is parsed with the same naming policy.
+     */
+    public static Gson gson() {
+        return gson;
+    }
+
+    public interface UserTokenProvider {
+        String getAccountId();
+        String getSalt();
+    }
+
+    private static volatile UserTokenProvider userTokenProvider;
+
+    public static void setUserTokenProvider(UserTokenProvider provider) {
+        userTokenProvider = provider;
+    }
+
+    /**
+     * Builds the token the API expects: "<unixSeconds>-<sha256(unixSeconds:salt:accountId)>",
+     * matching what the Pulse web client sends.
+     */
+    static String createUserToken(String accountId, String salt) {
+        long seconds = System.currentTimeMillis() / 1000L;
+        String digest = sha256Hex(seconds + ":" + salt + ":" + accountId);
+        return digest == null ? null : seconds + "-" + digest;
+    }
+
+    private static String sha256Hex(String value) {
+        try {
+            byte[] hashed = MessageDigest.getInstance("SHA-256")
+                    .digest(value.getBytes(StandardCharsets.UTF_8));
+            StringBuilder builder = new StringBuilder(hashed.length * 2);
+            for (byte b : hashed) {
+                builder.append(Character.forDigit((b >> 4) & 0xf, 16));
+                builder.append(Character.forDigit(b & 0xf, 16));
+            }
+            return builder.toString();
+        } catch (NoSuchAlgorithmException e) {
+            return null;
+        }
+    }
+
+    /**
+     * Signs every outgoing request. Requests made before an account exists (login, signup) are
+     * passed through untouched, since there is no salt to sign with yet.
+     */
+    private static class UserTokenInterceptor implements Interceptor {
+        @Override
+        public okhttp3.Response intercept(Chain chain) throws IOException {
+            Request request = chain.request();
+            UserTokenProvider provider = userTokenProvider;
+
+            if (provider != null && request.url().queryParameter("X-User-Token") == null) {
+                String accountId = provider.getAccountId();
+                String salt = provider.getSalt();
+
+                if (accountId != null && !accountId.isEmpty() && salt != null && !salt.isEmpty()) {
+                    String token = createUserToken(accountId, salt);
+                    if (token != null) {
+                        HttpUrl url = request.url().newBuilder()
+                                .addQueryParameter("X-User-Token", token)
+                                .build();
+                        request = request.newBuilder()
+                                .url(url)
+                                .header("X-User-Token", token)
+                                .build();
+                    }
+                }
+            }
+
+            return chain.proceed(request);
+        }
+    }
 
     public enum Environment {
         DEBUG, STAGING, RELEASE

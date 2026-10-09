@@ -26,6 +26,17 @@
     <string name="api_email">Email Address</string>
     <string name="api_password">Password</string>
     <string name="api_forgot_password">Forgot password FAQ</string>
+    <string name="api_manual_login">Sign in manually</string>
+    <string name="api_web_login">Sign in with browser</string>
+    <string name="api_web_login_load_error">Could not load the Pulse sign in page. Check your connection.</string>
+    <string name="api_web_login_failed">Signed in, but the response was missing something. Try \"Sign in manually\" instead.</string>
+    <string name="api_web_login_password_needed">Enter the password you just used</string>
+    <string name="api_manual_login_title">Manual sign in</string>
+    <string name="api_manual_login_instructions">The sign in endpoint now requires a reCaptcha that this app cannot show, so paste the login response instead.\n\n1. Sign in at pulsesms.app in a browser\n2. Open DevTools (F12) before signing in, and pick the Network tab\n3. Select the \"login\" request, open Response\n4. Copy the whole JSON body and paste it below</string>
+    <string name="api_manual_login_json_hint">Paste the login response JSON</string>
+    <string name="api_manual_login_password_hint">Your Pulse account password</string>
+    <string name="api_manual_login_parse_error">Could not read that JSON. It needs account_id, salt1 and salt2.</string>
+    <string name="api_manual_login_submit">Sign in</string>
     <string name="api_password_confirmation">Password Confirmation</string>
     <string name="api_name">Name</string>
     <string name="api_phone_number">Phone Number</string>

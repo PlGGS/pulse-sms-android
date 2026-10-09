@@ -59,8 +59,10 @@ buildscript {
 
     repositories {
         google()
-        jcenter()
         mavenCentral()
+        // jcenter.bintray.com now only redirects to Maven Central; this mirror still
+        // serves the jcenter-only artifacts that several 2020-era deps need.
+        maven { url "https://maven.aliyun.com/repository/jcenter" }
     }
 
     dependencies {
@@ -76,12 +78,12 @@ allprojects {
 
     repositories {
         google()
-        jcenter()
         mavenCentral()
         maven { url "https://jitpack.io" }
-        maven { url "https://dl.bintray.com/drummer-aidan/maven" }
-        maven { url "https://dl.bintray.com/sensor-tower/android-usage" }
-        maven { url "https://dl.bintray.com/mockito/maven" }
+        // The dl.bintray.com repos are permanently shut down. This mirror still serves
+        // the jcenter-only artifacts (bottom-bar, materialsearchview, fastscroll,
+        // materialcolorpicker, fotoapparat).
+        maven { url "https://maven.aliyun.com/repository/jcenter" }
         maven { url 'https://oss.sonatype.org/content/repositories/snapshots/' }
         flatDir { dirs "$rootProject.projectDir/shared/libs" }
     }

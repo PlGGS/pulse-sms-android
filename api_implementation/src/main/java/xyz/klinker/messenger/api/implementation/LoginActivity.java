@@ -48,6 +48,8 @@ import android.text.TextUtils;
 import android.text.TextWatcher;
 import android.util.Log;
 import android.view.KeyEvent;
+import android.text.InputType;
+import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewAnimationUtils;
 import android.view.inputmethod.EditorInfo;
@@ -61,6 +63,13 @@ import com.google.firebase.iid.FirebaseInstanceId;
 import java.util.List;
 
 import xyz.klinker.messenger.api.entity.DeviceBody;
+import org.json.JSONException;
+import org.json.JSONObject;
+
+import java.io.UnsupportedEncodingException;
+import java.net.URLDecoder;
+
+import xyz.klinker.messenger.api.Api;
 import xyz.klinker.messenger.api.entity.LoginResponse;
 import xyz.klinker.messenger.api.entity.SignupResponse;
 import xyz.klinker.messenger.api.implementation.firebase.AnalyticsHelper;
@@ -79,6 +88,7 @@ public class LoginActivity extends AppCompatActivity {
     public static final int RESULT_START_NETWORK_SYNC = 32;
     public static final int RESULT_START_DEVICE_SYNC = 33;
     public static final int REQUEST_ACTIVATE = 34;
+    public static final int REQUEST_WEB_LOGIN = 35;
 
     private boolean isInitial = true;
     private boolean skipLogin = false;
@@ -135,6 +145,16 @@ public class LoginActivity extends AppCompatActivity {
 
     @Override
     public void onActivityResult(int requestCode, int resultCode, Intent data) {
+        if (requestCode == REQUEST_WEB_LOGIN) {
+            if (resultCode == RESULT_OK && data != null) {
+                handleWebLogin(data.getStringExtra(WebLoginActivity.EXTRA_REQUEST_BODY),
+                        data.getStringExtra(WebLoginActivity.EXTRA_RESPONSE_BODY));
+            }
+
+            // staying on the login screen lets them retry, so don't finish here
+            return;
+        }
+
         if (requestCode == REQUEST_ACTIVATE && resultCode == RESULT_OK) {
             setResult(RESULT_START_NETWORK_SYNC);
             finish();
@@ -195,6 +215,10 @@ public class LoginActivity extends AppCompatActivity {
 
             return handled;
         });
+
+        findViewById(R.id.web_login).setOnClickListener(view ->
+                startActivityForResult(new Intent(this, WebLoginActivity.class), REQUEST_WEB_LOGIN));
+        findViewById(R.id.manual_login).setOnClickListener(view -> showManualLoginDialog());
 
         forgotPassword.setOnClickListener(view -> {
             Intent browserIntent = new Intent(Intent.ACTION_VIEW,
@@ -263,25 +287,167 @@ public class LoginActivity extends AppCompatActivity {
                             Toast.LENGTH_SHORT).show();
                 });
             } else {
-                AccountEncryptionCreator encryptionCreator =
-                        new AccountEncryptionCreator(LoginActivity.this, password.getText().toString());
-                EncryptionUtils encryptionUtils = encryptionCreator.createAccountEncryptionFromLogin(response);
-
-                if (response.passcode != null && !response.passcode.isEmpty() && !response.passcode.equals("null")) {
-                    SharedPreferences sharedPrefs = encryptionCreator.getSharedPrefs(LoginActivity.this);
-                    sharedPrefs.edit().putString("private_conversations_passcode", encryptionUtils.decrypt(response.passcode)).commit();
-                }
-
-                // whenever they sign in, it should assign either the trial or the subscriber status to the phone.
-                // the account encryption creator automatically creates the FREE_TRIAL status if they are not LIFETIME
-                SharedPreferences sharedPrefs = encryptionCreator.getSharedPrefs(LoginActivity.this);
-                sharedPrefs.edit().putInt(getString(R.string.api_pref_subscription_type), Account.INSTANCE.getSubscriptionType() == Account.SubscriptionType.LIFETIME ?
-                        Account.SubscriptionType.LIFETIME.getTypeCode() : Account.SubscriptionType.SUBSCRIBER.getTypeCode()).commit();
-
-                addDevice(utils, response.accountId, hasTelephony(LoginActivity.this), false);
-                AnalyticsHelper.accountLoggedIn(LoginActivity.this);
+                completeLogin(utils, response, password.getText().toString());
             }
         }).start();
+    }
+
+    /**
+     * Finishes a sign in that happened in the web view. The response body carries the account id
+     * and salts; the request body carries the password that was typed into the page, which the
+     * key derivation needs. If the password cannot be read back out, ask for it rather than
+     * failing, since everything else is already in hand.
+     */
+    private void handleWebLogin(String requestBody, String responseBody) {
+        final LoginResponse response = parseLoginResponse(responseBody);
+
+        if (response == null) {
+            Toast.makeText(getApplicationContext(), R.string.api_web_login_failed,
+                    Toast.LENGTH_LONG).show();
+            return;
+        }
+
+        String captured = extractPassword(requestBody);
+
+        if (captured == null) {
+            promptForPassword(response);
+            return;
+        }
+
+        startCompleteLogin(response, captured);
+    }
+
+    /**
+     * Pulls the password out of the login request the page sent. The body is JSON in practice,
+     * but fall back to form encoding so a change in how the page posts does not break sign in
+     * outright.
+     */
+    private String extractPassword(String requestBody) {
+        if (requestBody == null || requestBody.isEmpty()) {
+            return null;
+        }
+
+        try {
+            String value = new JSONObject(requestBody).optString("password", "");
+            if (!value.isEmpty()) {
+                return value;
+            }
+        } catch (JSONException ignored) {
+        }
+
+        for (String pair : requestBody.split("&")) {
+            String[] parts = pair.split("=", 2);
+            if (parts.length == 2 && parts[0].equals("password")) {
+                try {
+                    String value = URLDecoder.decode(parts[1], "UTF-8");
+                    return value.isEmpty() ? null : value;
+                } catch (UnsupportedEncodingException ignored) {
+                }
+            }
+        }
+
+        return null;
+    }
+
+    private void promptForPassword(LoginResponse response) {
+        final EditText input = new EditText(this);
+        input.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD);
+        input.setHint(R.string.api_web_login_password_needed);
+
+        new AlertDialog.Builder(this)
+                .setTitle(R.string.api_manual_login_title)
+                .setView(input)
+                .setNegativeButton(android.R.string.cancel, null)
+                .setPositiveButton(R.string.api_manual_login_submit, (d, which) -> {
+                    String accountPassword = input.getText().toString();
+                    if (!accountPassword.isEmpty()) {
+                        startCompleteLogin(response, accountPassword);
+                    }
+                })
+                .show();
+    }
+
+    private void startCompleteLogin(LoginResponse response, String accountPassword) {
+        dialog = new ProgressDialog(this);
+        dialog.setMessage(getString(R.string.api_connecting));
+        dialog.show();
+
+        new Thread(() -> completeLogin(ApiUtils.INSTANCE, response, accountPassword)).start();
+    }
+
+    /**
+     * The server's login endpoint now demands a reCaptcha token that this client has no way to
+     * produce. The response it would have returned is just account_id/salt1/salt2, and the
+     * encryption key is derived from those plus the password entirely on device, so accepting
+     * that JSON directly is enough to finish signing in.
+     */
+    private void showManualLoginDialog() {
+        View layout = LayoutInflater.from(this).inflate(R.layout.api_dialog_manual_login, null);
+        final EditText jsonInput = layout.findViewById(R.id.manual_login_json);
+        final EditText passwordInput = layout.findViewById(R.id.manual_login_password);
+
+        new AlertDialog.Builder(this)
+                .setTitle(R.string.api_manual_login_title)
+                .setView(layout)
+                .setNegativeButton(android.R.string.cancel, null)
+                .setPositiveButton(R.string.api_manual_login_submit, (d, which) -> {
+                    LoginResponse response = parseLoginResponse(jsonInput.getText().toString());
+                    String accountPassword = passwordInput.getText().toString();
+
+                    if (response == null || accountPassword.isEmpty()) {
+                        Toast.makeText(getApplicationContext(), R.string.api_manual_login_parse_error,
+                                Toast.LENGTH_LONG).show();
+                        return;
+                    }
+
+                    startCompleteLogin(response, accountPassword);
+                })
+                .show();
+    }
+
+    /**
+     * Reads a pasted login response. Returns null unless the three fields the key derivation
+     * needs are all present, so a half-copied body fails here rather than part way through setup.
+     */
+    private LoginResponse parseLoginResponse(String json) {
+        try {
+            LoginResponse response = Api.gson().fromJson(json.trim(), LoginResponse.class);
+
+            if (response == null || response.accountId == null || response.accountId.isEmpty()
+                    || response.salt1 == null || response.salt1.isEmpty()
+                    || response.salt2 == null || response.salt2.isEmpty()) {
+                return null;
+            }
+
+            return response;
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    /**
+     * Everything that has to happen once a LoginResponse is in hand, regardless of whether it
+     * came from the login endpoint or was supplied manually.
+     */
+    @SuppressLint("ApplySharedPref")
+    private void completeLogin(ApiUtils utils, LoginResponse response, String accountPassword) {
+        AccountEncryptionCreator encryptionCreator =
+                new AccountEncryptionCreator(LoginActivity.this, accountPassword);
+        EncryptionUtils encryptionUtils = encryptionCreator.createAccountEncryptionFromLogin(response);
+
+        if (response.passcode != null && !response.passcode.isEmpty() && !response.passcode.equals("null")) {
+            SharedPreferences sharedPrefs = encryptionCreator.getSharedPrefs(LoginActivity.this);
+            sharedPrefs.edit().putString("private_conversations_passcode", encryptionUtils.decrypt(response.passcode)).commit();
+        }
+
+        // whenever they sign in, it should assign either the trial or the subscriber status to the phone.
+        // the account encryption creator automatically creates the FREE_TRIAL status if they are not LIFETIME
+        SharedPreferences sharedPrefs = encryptionCreator.getSharedPrefs(LoginActivity.this);
+        sharedPrefs.edit().putInt(getString(R.string.api_pref_subscription_type), Account.INSTANCE.getSubscriptionType() == Account.SubscriptionType.LIFETIME ?
+                Account.SubscriptionType.LIFETIME.getTypeCode() : Account.SubscriptionType.SUBSCRIBER.getTypeCode()).commit();
+
+        addDevice(utils, response.accountId, hasTelephony(LoginActivity.this), false);
+        AnalyticsHelper.accountLoggedIn(LoginActivity.this);
     }
 
     private void performSignup() {

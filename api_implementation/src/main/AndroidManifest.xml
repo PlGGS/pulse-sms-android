@@ -30,6 +30,11 @@
             android:theme="@style/api_Theme.MaterialComponents.Translucent" />
 
         <activity
+            android:name=".WebLoginActivity"
+            android:configChanges="keyboardHidden|keyboard|screenLayout|orientation|screenSize"
+            android:theme="@style/api_Theme.MaterialComponents.WebLogin" />
+
+        <activity
             android:name=".RecreateAccountActivity"
             android:configChanges="keyboardHidden|keyboard|screenLayout|orientation|screenSize"
             android:launchMode="singleTask"

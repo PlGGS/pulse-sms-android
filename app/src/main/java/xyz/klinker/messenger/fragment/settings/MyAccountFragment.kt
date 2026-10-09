@@ -85,6 +85,7 @@ class MyAccountFragment : MaterialPreferenceFragmentCompat() {
             initLifetimeSubscriberPreference()
             findPreference(getString(R.string.pref_about_device_id)).summary = deviceId
             initMessageCountPreference()
+            initSignOutPreference()
             initRemoveAccountPreference()
             initResyncAccountPreference()
             initResyncContactsPreference()
@@ -227,6 +228,8 @@ class MyAccountFragment : MaterialPreferenceFragmentCompat() {
                     .removePreference(findPreference(getString(R.string.pref_message_count)))
             (findPreference(getString(R.string.pref_category_account_information)) as PreferenceCategory)
                     .removePreference(findPreference(getString(R.string.pref_about_device_id)))
+            (findPreference(getString(R.string.pref_category_account_information)) as PreferenceCategory)
+                    .removePreference(findPreference(getString(R.string.pref_sign_out)))
             preferenceScreen.removePreference(findPreference(getString(R.string.pref_category_account_actions)))
         } catch (e: Exception) {
         }
@@ -284,6 +287,37 @@ class MyAccountFragment : MaterialPreferenceFragmentCompat() {
 
         preference.title = title
         preference.summary = summary
+    }
+
+    private fun initSignOutPreference() {
+        val preference = findPreference(getString(R.string.pref_sign_out))
+
+        preference.setOnPreferenceClickListener {
+            AlertDialog.Builder(fragmentActivity!!)
+                    .setMessage(R.string.sign_out_confirmation)
+                    .setPositiveButton(android.R.string.yes) { _, _ -> signOut() }
+                    .setNegativeButton(android.R.string.no, null)
+                    .show()
+
+            true
+        }
+    }
+
+    /**
+     * Drops this device's credentials and nothing else. Deliberately does not call the account
+     * removal endpoint the way deleteAccount() does, so the account, its subscription and the
+     * messages on other devices all survive and signing back in restores this device.
+     */
+    private fun signOut() {
+        val account = Account
+
+        account.setDeviceId(fragmentActivity!!, null)
+        account.clearAccount(fragmentActivity!!)
+
+        returnToConversationsAfterLogin()
+
+        val nav = fragmentActivity?.findViewById<View>(R.id.navigation_view) as NavigationView?
+        nav?.menu?.findItem(R.id.drawer_account)?.setTitle(R.string.menu_device_texting)
     }
 
     private fun initRemoveAccountPreference() {

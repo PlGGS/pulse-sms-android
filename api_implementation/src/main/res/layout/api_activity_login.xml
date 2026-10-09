@@ -136,6 +136,26 @@
                 android:textColor="@color/api_text_accent"
                 android:text="@string/api_forgot_password"/>
 
+            <TextView
+                android:id="@+id/web_login"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textSize="16sp"
+                android:padding="8dp"
+                android:background="?selectableItemBackground"
+                android:textColor="@color/api_text_accent"
+                android:text="@string/api_web_login"/>
+
+            <TextView
+                android:id="@+id/manual_login"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textSize="16sp"
+                android:padding="8dp"
+                android:background="?selectableItemBackground"
+                android:textColor="@color/api_text_accent"
+                android:text="@string/api_manual_login"/>
+
         </LinearLayout>
 
         <com.google.android.material.floatingactionbutton.FloatingActionButton

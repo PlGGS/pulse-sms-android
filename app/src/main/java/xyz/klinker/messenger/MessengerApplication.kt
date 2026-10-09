@@ -19,7 +19,6 @@ package xyz.klinker.messenger
 import android.app.Application
 import android.content.Intent
 import android.os.Build
-import com.sensortower.events.EventHandler
 import xyz.klinker.messenger.api.implementation.Account
 import xyz.klinker.messenger.api.implementation.AccountInvalidator
 import xyz.klinker.messenger.api.implementation.firebase.AnalyticsHelper
@@ -40,7 +39,7 @@ import xyz.klinker.messenger.shared.util.UpdateUtils
  * Base application that will serve as any intro for any context in the rest of the app. Main
  * function is to enable night mode so that colors change depending on time of day.
  */
-class MessengerApplication : FirebaseApplication(), ApiErrorPersister, AccountInvalidator, EventHandler.Provider, ShortcutUpdater {
+class MessengerApplication : FirebaseApplication(), ApiErrorPersister, AccountInvalidator, ShortcutUpdater {
 
     override fun onCreate() {
         super.onCreate()
@@ -144,11 +143,4 @@ class MessengerApplication : FirebaseApplication(), ApiErrorPersister, AccountIn
 
         }
     }
-
-    override val eventHandler: EventHandler
-        get() = object : EventHandler {
-            override fun onAnalyticsEvent(type: String, message: String?) {
-                AnalyticsHelper.logEvent(this@MessengerApplication, type)
-            }
-        }
 }

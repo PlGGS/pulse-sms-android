@@ -45,6 +45,12 @@
             android:title="@string/view_platforms"
             app:iconSpaceReserved="false" />
 
+        <Preference
+            android:key="@string/pref_sign_out"
+            android:title="@string/sign_out"
+            android:summary="@string/sign_out_summary"
+            app:iconSpaceReserved="false" />
+
     </xyz.klinker.messenger.shared.view.MaterialPreferenceCategoryCompat>
 
     <xyz.klinker.messenger.shared.view.MaterialPreferenceCategoryCompat

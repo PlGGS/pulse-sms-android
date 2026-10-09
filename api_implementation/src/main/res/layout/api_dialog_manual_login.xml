@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="24dp">
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="16dp"
+            android:textSize="14sp"
+            android:text="@string/api_manual_login_instructions" />
+
+        <EditText
+            android:id="@+id/manual_login_json"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:minLines="4"
+            android:maxLines="8"
+            android:gravity="top|start"
+            android:inputType="textMultiLine|textNoSuggestions"
+            android:hint="@string/api_manual_login_json_hint"
+            android:layout_marginBottom="8dp" />
+
+        <EditText
+            android:id="@+id/manual_login_password"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:inputType="textPassword"
+            android:hint="@string/api_manual_login_password_hint" />
+
+    </LinearLayout>
+
+</ScrollView>

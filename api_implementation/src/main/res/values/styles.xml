@@ -27,6 +27,15 @@
         <item name="android:windowAnimationStyle">@android:style/Animation</item>
     </style>
 
+    <!-- The web sign in page renders its own chrome, so it just needs an opaque window. -->
+    <style name="api_Theme.MaterialComponents.WebLogin" parent="@style/Theme.MaterialComponents.Light.NoActionBar">
+        <item name="colorPrimary">@color/api_login_background</item>
+        <item name="colorPrimaryDark">@color/api_login_background_dark</item>
+        <item name="colorAccent">@color/api_fab_background</item>
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:windowBackground">@android:color/white</item>
+    </style>
+
     <style name="api_Theme.MaterialComponents.Activate" parent="@style/Theme.MaterialComponents.NoActionBar">
         <item name="colorPrimary">@color/api_login_background</item>
         <item name="colorPrimaryDark">@color/api_login_background_dark</item>

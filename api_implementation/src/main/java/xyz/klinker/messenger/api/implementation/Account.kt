@@ -11,6 +11,7 @@ import java.util.Date
 
 import javax.crypto.spec.SecretKeySpec
 
+import xyz.klinker.messenger.api.Api
 import xyz.klinker.messenger.encryption.EncryptionUtils
 import xyz.klinker.messenger.encryption.KeyUtils
 
@@ -47,8 +48,19 @@ object Account {
 
     var hasPurchased: Boolean = false
 
+    /**
+     * The API signs every request with a token derived from the account's salt, so hand it a
+     * provider that reads the live values rather than a snapshot taken before login.
+     */
+    private val userTokenProvider = object : Api.UserTokenProvider {
+        override fun getAccountId() = Account.accountId
+        override fun getSalt() = Account.salt
+    }
+
     fun init(context: Context) {
         val sharedPrefs = getSharedPrefs(context)
+
+        Api.setUserTokenProvider(userTokenProvider)
 
         // account info
         Account.primary = sharedPrefs.getBoolean(context.getString(R.string.api_pref_primary), false)

@@ -457,6 +457,9 @@
     <string name="setup_my_account_summary">Sign up or log in to your account to start using
         more features like messaging from your tablet or computer</string>
     <string name="preparing_new_account">Preparing account&#8230;</string>
+    <string name="sign_out">Sign Out</string>
+    <string name="sign_out_summary">Sign out of your Pulse account on this device. Your account and your messages on other devices are left alone.</string>
+    <string name="sign_out_confirmation">Sign out of Pulse on this device? Your account is not deleted and you can sign back in at any time.</string>
     <string name="delete_account">Delete Account</string>
     <string name="delete_account_summary">Removes the account from this device, your other signed in
         devices, and the server. This is not reversible!</string>
